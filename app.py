@@ -27,6 +27,45 @@ def get_aqi_color(aqi):
     elif aqi <= 300: return "#8b5cf6", "Very Unhealthy"
     else: return "#7f1d1d", "Hazardous"
 
+def get_eco_tips(aqi, city):
+    prompt = f"""You are AirPulse, an environmental AI advisor.
+City: {city}, AQI: {aqi}
+Give 3 specific hyperlocal eco tips to REDUCE air pollution in this city.
+Format as numbered list. Be specific and actionable. Max 3 lines each."""
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except:
+        return "Plant trees, use public transport, reduce burning waste."
+    
+def calculate_carbon(data):
+    driving = float(data.get('driving', 0))
+    flights = float(data.get('flights', 0))
+    electricity = float(data.get('electricity', 0))
+    meat = float(data.get('meat', 0))
+    
+    total = (driving * 0.21) + (flights * 255) + (electricity * 0.4) + (meat * 3.3 * 52)
+    
+    prompt = f"""You are AirPulse carbon footprint advisor.
+User's annual carbon footprint: {total:.1f} kg CO2
+- Driving: {driving} km/week
+- Flights: {flights} per year  
+- Electricity: {electricity} kWh/month
+- Meat consumption: {meat} meals/week
+
+Give:
+🌍 Carbon Score: {total:.0f} kg CO2/year (compare to world average 4,000 kg)
+📊 Breakdown: which activity contributes most
+✅ Top 3 actions to reduce footprint significantly
+🌱 Equivalent: how many trees needed to offset this
+
+Be specific and motivating."""
+    try:
+        response = model.generate_content(prompt)
+        return {"total": round(total, 1), "advice": response.text}
+    except:
+        return {"total": round(total, 1), "advice": f"Your footprint is {total:.0f} kg CO2/year."}
+
 HTML_PAGE = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -269,8 +308,54 @@ HTML_PAGE = """<!DOCTYPE html>
             <div class="ai-advice-text" id="aiAdvice">--</div>
         </div>
     </div>
+    
+        <!-- ECO TIPS CARD -->
+    <div class="result-card" id="ecoCard" style="display:none;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+            <div style="font-size:1.5em;">🌱</div>
+            <div>
+                <strong style="font-size:1em;">Hyperlocal Eco Tips</strong>
+                <div style="font-size:0.72em;color:#10b981">AI tips to reduce pollution in your city</div>
+            </div>
+        </div>
+        <div id="ecoTips" style="font-size:0.88em;line-height:1.8;color:#e2e8f0;"></div>
+    </div>
 
-    <div class="features">
+    <!-- CARBON CALCULATOR -->
+    <div style="background:rgba(15,23,42,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:24px;padding:32px;margin-bottom:24px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px;">
+            <div style="font-size:1.5em;">👣</div>
+            <div>
+                <strong style="font-size:1em;">Carbon Footprint Calculator</strong>
+                <div style="font-size:0.72em;color:#10b981">Calculate your personal CO2 impact</div>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+            <div>
+                <label style="font-size:0.78em;color:#94a3b8;display:block;margin-bottom:6px;">🚗 Driving (km/week)</label>
+                <input type="number" id="driving" placeholder="e.g. 100" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#fff;font-family:Inter,sans-serif;outline:none;">
+            </div>
+            <div>
+                <label style="font-size:0.78em;color:#94a3b8;display:block;margin-bottom:6px;">✈️ Flights (per year)</label>
+                <input type="number" id="flights" placeholder="e.g. 2" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#fff;font-family:Inter,sans-serif;outline:none;">
+            </div>
+            <div>
+                <label style="font-size:0.78em;color:#94a3b8;display:block;margin-bottom:6px;">⚡ Electricity (kWh/month)</label>
+                <input type="number" id="electricity" placeholder="e.g. 200" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#fff;font-family:Inter,sans-serif;outline:none;">
+            </div>
+            <div>
+                <label style="font-size:0.78em;color:#94a3b8;display:block;margin-bottom:6px;">🥩 Meat meals (per week)</label>
+                <input type="number" id="meat" placeholder="e.g. 5" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#fff;font-family:Inter,sans-serif;outline:none;">
+            </div>
+        </div>
+        <button onclick="calcCarbon()" style="width:100%;background:linear-gradient(135deg,#10b981,#6366f1);color:white;border:none;padding:14px;border-radius:14px;cursor:pointer;font-weight:700;font-family:Inter,sans-serif;font-size:0.95em;">Calculate My Carbon Footprint ➤</button>
+        <div id="carbonResult" style="margin-top:20px;display:none;">
+            <div id="carbonScore" style="text-align:center;font-size:2.5em;font-weight:900;color:#10b981;margin-bottom:12px;"></div>
+            <div id="carbonAdvice" style="font-size:0.88em;line-height:1.8;color:#e2e8f0;"></div>
+        </div>
+    </div>
+
+        <div class="features">
         <div class="feature-card">
             <div class="feature-icon">🌍</div>
             <h4>Global Coverage</h4>
@@ -282,9 +367,14 @@ HTML_PAGE = """<!DOCTYPE html>
             <p>Google Gemini analyzes your local air quality and gives personalized health recommendations</p>
         </div>
         <div class="feature-card">
-            <div class="feature-icon">⚡</div>
-            <h4>Instant Results</h4>
-            <p>No signup needed. Search any city and get actionable advice in seconds</p>
+            <div class="feature-icon">🌱</div>
+            <h4>Eco Tips</h4>
+            <p>AI-generated hyperlocal tips to reduce pollution in your specific city</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">👣</div>
+            <h4>Carbon Calculator</h4>
+            <p>Calculate your personal carbon footprint and get AI advice to reduce it</p>
         </div>
     </div>
 </div>
@@ -336,14 +426,45 @@ async function checkAir() {
             </div>`;
         }
         document.getElementById('pollutants').innerHTML = pollutantsHTML;
-        document.getElementById('aiAdvice').innerHTML = data.advice.split('\\n').join('<br>');
+        document.getElementById('aiAdvice').innerHTML = data.advice.replace(/\\n/g, '<br>');
         
         document.getElementById('loading').style.display = 'none';
         document.getElementById('resultCard').style.display = 'block';
         document.getElementById('resultCard').scrollIntoView({behavior: 'smooth'});
         
+                // Fetch eco tips
+        fetch('/eco-tips', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({city: city, aqi: data.aqi})
+        }).then(r => r.json()).then(eco => {
+            document.getElementById('ecoTips').innerHTML = eco.tips.replace(/\\n/g, '<br>');
+            document.getElementById('ecoCard').style.display = 'block';
+        });
+        
     } catch(e) {
         document.getElementById('loading').style.display = 'none';
+        alert('Something went wrong. Please try again.');
+    }
+}
+
+async function calcCarbon() {
+    const driving = document.getElementById('driving').value || 0;
+    const flights = document.getElementById('flights').value || 0;
+    const electricity = document.getElementById('electricity').value || 0;
+    const meat = document.getElementById('meat').value || 0;
+    
+    try {
+        const response = await fetch('/carbon', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({driving, flights, electricity, meat})
+        });
+        const data = await response.json();
+        document.getElementById('carbonScore').textContent = data.total + ' kg CO2/year';
+        document.getElementById('carbonAdvice').innerHTML = data.advice.replace(/\\n/g, '<br>');
+        document.getElementById('carbonResult').style.display = 'block';
+    } catch(e) {
         alert('Something went wrong. Please try again.');
     }
 }
@@ -408,6 +529,20 @@ Be practical, caring, and specific. Keep it concise."""
 @app.route('/health')
 def health():
     return jsonify({"status": "running", "product": "AirPulse", "version": "1.0"})
+
+@app.route('/eco-tips', methods=['POST'])
+def eco_tips():
+    data = request.json
+    city = data.get('city', 'your city')
+    aqi = data.get('aqi', 100)
+    tips = get_eco_tips(aqi, city)
+    return jsonify({"tips": tips})
+
+@app.route('/carbon', methods=['POST'])
+def carbon():
+    data = request.json
+    result = calculate_carbon(data)
+    return jsonify(result)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=False)
