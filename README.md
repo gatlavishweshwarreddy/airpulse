@@ -2,7 +2,7 @@
 AI-Powered Real-Time Air Quality Advisor
 
 ## Live Demo
-https://airpulse-257248616047.us-central1.run.app
+(https://airpulse-262703482486.us-central1.run.app)
 
 ## What is AirPulse?
 AirPulse gives instant real-time air quality data + AI health advice for any city worldwide. Powered by Google Gemini 2.5 Flash and WAQI global monitoring network.
