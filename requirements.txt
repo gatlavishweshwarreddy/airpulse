@@ -1,5 +1,3 @@
 flask
 requests
-vertexai
-google-cloud-aiplatform
-google-cloud-firestore
+google-generativeai

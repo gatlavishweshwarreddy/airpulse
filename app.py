@@ -1,13 +1,13 @@
 import os
 import requests
-import vertexai
-from vertexai.generative_models import GenerativeModel
+import google.generativeai as genai
 from flask import Flask, request, jsonify, render_template_string
 
 app = Flask(__name__)
 
-vertexai.init(project=os.environ.get("GCP_PROJECT", "airpulse"), location='us-central1')
-model = GenerativeModel('gemini-2.5-flash')
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+model = genai.GenerativeModel('gemini-3.6-flash')
+
 
 WAQI_TOKEN = os.environ.get("WAQI_TOKEN")
 
